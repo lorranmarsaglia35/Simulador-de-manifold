@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulador de Leitura de Manifold</title>
+<script>window.onerror=function(m,s,l){var d=document.createElement("div");d.style.cssText="background:#fff3cd;color:#5c4400;padding:10px;font:14px sans-serif;border-bottom:2px solid #e0a800";d.textContent="Erro ao carregar o simulador: "+m+" (linha "+l+"). Atualize a página ou tente outro navegador.";document.addEventListener("DOMContentLoaded",function(){document.body.insertBefore(d,document.body.firstChild)});if(document.body)document.body.insertBefore(d,document.body.firstChild)}</script>
+<style>
+:root{box-sizing:border-box;--bg:#f4f6f8;--fg:#1c2530;--card:#fff;--mut:#5d6b7b;--face:#fbfbf7;--line:#d5dbe2;--ok:#1a8a4a;--bad:#c93a3a;--acc:#1f6feb;--tmp:#0f8a6a}
+@media (prefers-color-scheme:dark){:root{--bg:#12171d;--fg:#e6ebf0;--card:#1b222b;--mut:#9aa8b8;--face:#e9e9e2;--line:#2c3743;--ok:#4cc27d;--bad:#ef6b6b;--acc:#5aa0ff;--tmp:#38c9a0}}
+*{box-sizing:inherit}html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.45;padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+h1{font-size:17px;margin:0}h2{font-size:20px;margin:0 0 8px}h3{margin:0 0 6px;font-size:17px}
+main{max-width:900px;margin:0 auto;padding:14px 14px 90px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.btn,.ghost,.lvl,.opt{font:inherit;cursor:pointer;border-radius:12px;min-height:48px;border:1px solid var(--acc)}
+.btn{background:var(--acc);color:#fff;padding:12px 18px;font-weight:600;width:100%}
+.ghost{background:transparent;color:var(--acc);padding:8px 14px;min-height:40px}
+.lvl{display:block;width:100%;text-align:left;background:var(--card);color:var(--fg);padding:12px 14px;margin-bottom:10px;border-color:var(--line)}
+.lvl b{display:block;font-size:16px}.lvl span{display:block;color:var(--mut);font-size:14px}.lvl small{display:block;margin-top:4px;color:var(--acc)}
+.opt{display:block;width:100%;text-align:left;background:var(--card);color:var(--fg);padding:12px 14px;margin-bottom:8px;border-color:var(--line)}
+.opt.right{border-color:var(--ok);background:rgba(26,138,74,.18)}.opt.wrong{border-color:var(--bad);background:rgba(201,58,58,.18)}
+.dials{display:grid;gap:8px;grid-template-columns:1fr}.dial{width:100%;max-width:460px;margin:0 auto;display:block}
+@media (min-width:760px){.dials{grid-template-columns:1fr 1fr}}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media (max-width:420px){.fields{grid-template-columns:1fr}}
+label{display:flex;flex-direction:column;font-size:13px;color:var(--mut);gap:4px}
+input,select{font:inherit;font-size:18px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);width:100%}
+.bar{height:8px;background:var(--line);border-radius:6px;overflow:hidden;margin:6px 0 10px}.bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .3s}
+.data{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:8px 0}.data div{background:var(--bg);border-radius:10px;padding:8px 10px}.data span{display:block;font-size:12px;color:var(--mut)}.data b{font-size:18px}
+.mut{color:var(--mut);font-size:14px}.okc{color:var(--ok)}.bad{color:var(--bad)}.fl{margin:8px 0 4px}
+.actions{position:fixed;left:0;right:0;bottom:0;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,var(--bg) 30%);max-width:900px;margin:0 auto}
+.big{font-size:44px;font-weight:700;margin:4px 0}.dots span{font-size:20px}
+details{margin:10px 0}summary{cursor:pointer;color:var(--acc)}.hide{display:none!important}
+</style>
+</head>
+<body>
+<noscript><p style="padding:12px">Ative o JavaScript do navegador para usar o simulador.</p></noscript>
+<header><h1>🔧 Simulador de Manifold</h1><button id="home" class="ghost hide">Início</button></header>
+<main>
+<section id="sH">
+  <div class="card"><h2>Treine a leitura sozinho</h2>
+    <p>Em cada rodada você resolve 10 questões, recebe a correção na hora, com a explicação de como contar as divisões, e acompanha seu progresso. Os níveis aumentam de dificuldade: leitura de pressão, temperatura de saturação e diagnóstico do sistema.</p>
+    <label>Fluido refrigerante<select id="fl"></select></label></div>
+  <div id="lv"></div>
+  <details class="card"><summary>Como ler o manômetro</summary>
+    <p>1. Identifique o relógio: <b>baixa</b> (azul, tem escala de vácuo em inHg) e <b>alta</b> (vermelho).<br>2. Veja a legenda "1 div = ..." para saber quanto vale cada traço.<br>3. Leia o último número que a agulha passou e conte as divisões depois dele.<br>4. A escala verde dá a temperatura de saturação do fluido na posição da agulha. A baixa indica a temperatura de evaporação, e a alta a de condensação.<br>5. SH = T sucção − T<sub>evap</sub> e SC = T<sub>cond</sub> − T linha de líquido.</p></details>
+  <p class="mut">Valores de pressão e temperatura aproximados, para uso didático. Em serviço, use a tabela do fabricante. <button id="rst" class="ghost">Apagar progresso</button><br>Versão 3 (autoguiado)</p>
+</section>
+<section id="sQ" class="hide">
+  <div class="mut" id="qn"></div><div class="bar"><i id="pbar"></i></div>
+  <div class="dials" id="dl"></div><div class="card" id="qin" style="margin-top:12px"></div><div class="card hide" id="fb"></div>
+  <div class="actions"><button id="chk" class="btn">Conferir</button><button id="nxt" class="btn hide">Próxima</button></div>
+</section>
+<section id="sR" class="hide"><div class="card" id="res" style="text-align:center"></div>
+  <button id="again" class="btn">Nova rodada</button><p></p><button id="again2" class="btn ghost" style="width:100%">Voltar ao início</button></section>
+</main>
+<script>
+// ---------- Tabela P x T (kPa abs, -40..70 °C de 10 em 10) — valores aproximados, didáticos ----------
+const FL={
+ "R-134a":[51.2,84.4,132.7,200.6,292.8,414.6,571.7,770.2,1016.6,1318,1682,2117],
+ "R-22":[104.9,163.9,245.3,354.3,497.6,680.7,909.9,1191.9,1533.6,1942.3,2425,2989],
+ "R-410A":[175.8,269.6,399.6,573.1,798.7,1085.7,1443.5,1882.7,2414,3049,3801,4687],
+ "R-404A":[131.9,205,304,436,604,815,1075,1390,1771,2217,2742,3350],
+ "R-290":[111,167,244,345,474,636,837,1079,1370,1715,2120,2590]};
+const KPA=0.145038,ATM=14.696;
+const pts=f=>FL[f].map((p,i)=>[1/(233.15+10*i),Math.log(p)]);
+function interp(P,v,ix,iy){ // interpolação linear por segmentos (com extrapolação)
+  let i=0;const asc=P[P.length-1][ix]>P[0][ix];
+  while(i<P.length-2&&(asc?v>P[i+1][ix]:v<P[i+1][ix]))i++;
+  const[a,b]=[P[i],P[i+1]];return a[iy]+(v-a[ix])*(b[iy]-a[iy])/(b[ix]-a[ix]);}
+const satP=(f,T)=>Math.exp(interp(pts(f),1/(T+273.15),0,1))*KPA-ATM;
+const satT=(f,ps)=>1/interp(pts(f),Math.log(Math.max(ps+ATM,5)/KPA),1,0)-273.15;
+// ---------- Relógios ----------
+const G={b:{n:"BAIXA",min:-14.7,max:150,minor:2,major:10,lab:20,c:"#1f6feb"},a:{n:"ALTA",min:0,max:500,minor:10,major:50,lab:50,c:"#d93838"}};
+const pt=(a,r)=>[150+r*Math.cos(a*Math.PI/180),150+r*Math.sin(a*Math.PI/180)];
+function dial(g,val,f,showT){
+  const ang=p=>135+270*(p-g.min)/(g.max-g.min);let s='<svg viewBox="0 0 300 300" class="dial" role="img" aria-label="Manômetro">';
+  s+=`<circle cx="150" cy="150" r="146" fill="${g.c}"/><circle cx="150" cy="150" r="136" fill="var(--face)"/>`;
+  const L=(a,r1,r2,w,col)=>{const[x1,y1]=pt(a,r1),[x2,y2]=pt(a,r2);return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="${w}"/>`};
+  if(g.min<0){for(let i=2;i<=30;i+=2){const p=-0.49*i,M=i%10===0;s+=L(ang(p),126,M?106:116,M?2.2:1,"#b02a2a");
+      if(M){const[x,y]=pt(ang(p),94);s+=`<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="700" fill="#b02a2a">${i}</text>`}}
+    const[vx,vy]=pt(ang(-7.4),78);s+=`<text x="${vx}" y="${vy}" text-anchor="middle" font-size="9" font-weight="700" fill="#b02a2a">inHg</text>`}
+  for(let p=Math.max(0,Math.ceil(g.min/g.minor)*g.minor);p<=g.max+0.01;p+=g.minor){const M=Math.abs(p%g.major)<0.01,B=Math.abs(p%g.lab)<0.01;s+=L(ang(p),126,M?106:116,M?2.2:1,"#222");
+    if(B&&p>=0){const[x,y]=pt(ang(p),94);s+=`<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="700" fill="#222">${p}</text>`}}
+  if(showT){const lo=g===G.a?60:Math.max(g.min,0.5),tmin=Math.ceil(satT(f,lo)/5)*5,tmax=satT(f,g.max),TT=[];
+    for(let T=tmin;T<=tmax;T+=5){const p=satP(f,T);if(p>=lo&&p<=g.max)TT.push({T,a:ang(p)})}
+    let gap=99;const t10=TT.filter(o=>o.T%10===0);for(let i=1;i<t10.length;i++)gap=Math.min(gap,t10[i].a-t10[i-1].a);
+    const ls=gap<13?20:10;
+    TT.forEach(({T,a})=>{const M=T%10===0,B=T%ls===0;s+=L(a,80,M?64:72,M?2:1.2,"var(--tmp)");
+      if(B){const[x,y]=pt(a,54);s+=`<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--tmp)" font-weight="700">${T}</text>`}});
+    s+=`<text x="150" y="240" text-anchor="middle" font-size="9.5" fill="var(--tmp)" font-weight="700">°C ${f} · 1 div = 5 °C</text>`}
+  const v=Math.min(g.max,Math.max(g.min,val)),a=ang(v),[nx,ny]=pt(a,108),[tx,ty]=pt(a+180,22);
+  s+=`<text x="150" y="196" text-anchor="middle" font-size="13" font-weight="800" fill="${g.c}">${g.n}</text><text x="150" y="210" text-anchor="middle" font-size="10" fill="#222">psig · 1 div = ${g.minor}</text>`;
+  s+=`<line x1="${tx}" y1="${ty}" x2="${nx}" y2="${ny}" stroke="#111" stroke-width="3" stroke-linecap="round"/><circle cx="150" cy="150" r="7" fill="#111"/></svg>`;return s}
+const drawDials=(el,s)=>{el.innerHTML=dial(G.b,s.pb,s.f,s.t)+dial(G.a,s.pa,s.f,s.t)};
+
+// ---------- App autoguiado ----------
+const $=id=>document.getElementById(id);
+const f1=x=>(Math.round(x*10)/10).toString().replace(".",",");
+const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const pick=a=>a[rnd(0,a.length-1)];
+const shuffle=a=>a.map(x=>[Math.random(),x]).sort((p,q)=>p[0]-q[0]).map(x=>x[1]);
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+let st={};try{st=JSON.parse(localStorage.getItem("mf_prog")||"{}")}catch(e){}
+const save=()=>{try{localStorage.setItem("mf_prog",JSON.stringify(st))}catch(e){}};
+const NQ=10,FLS=Object.keys(FL);
+const LV={1:["Nível 1","Ler a pressão","Conte as divisões do relógio, sem escala de temperatura."],2:["Nível 2","Pressão e temperatura","Leia a pressão e a temperatura de saturação do fluido."],3:["Nível 3","Diagnóstico","Analise pressões, SH e SC e descubra o problema do sistema."]};
+const FAULTS=[
+{id:"ok",n:"Funcionamento normal",de:0,dc:0,sh:7,sc:7,why:"Pressões coerentes com o ambiente, e SH e SC dentro da faixa de 5 a 10 K: o sistema está bem carregado e trocando calor normalmente."},
+{id:"falta",n:"Falta de refrigerante",de:-8,dc:-6,sh:20,sc:2,why:"Com pouco refrigerante, o evaporador recebe pouco líquido (SH alto) e quase não sobra líquido no condensador (SC baixo). As duas pressões caem."},
+{id:"exc",n:"Excesso de refrigerante",de:1,dc:8,sh:3,sc:16,why:"O líquido em excesso se acumula no condensador: a pressão alta sobe e o SC fica alto. O SH tende a ficar baixo, com risco de retorno de líquido."},
+{id:"cond",n:"Condensador sujo ou pouco ar",de:2,dc:14,sh:7,sc:5,why:"O condensador não consegue rejeitar o calor: a temperatura de condensação fica muito acima do ambiente. SH e SC ficam próximos do normal."},
+{id:"restr",n:"Restrição na linha de líquido",de:-10,dc:-2,sh:18,sc:14,why:"A restrição limita a vazão: a pressão baixa cai e o SH sobe, enquanto o líquido se acumula antes dela (SC alto)."},
+{id:"ar",n:"Pouco ar no evaporador",de:-8,dc:-3,sh:2,sc:7,why:"Com pouco ar, o evaporador absorve pouco calor: a pressão baixa cai e o SH fica muito baixo, com risco de gelo e de retorno de líquido."},
+{id:"comp",n:"Compressor com baixa eficiência",de:8,dc:-8,sh:9,sc:4,why:"O compressor bombeia pouco: a pressão baixa sobe e a alta cai, e as pressões tendem a se igualar."},
+{id:"txv",n:"Válvula de expansão aberta demais",de:7,dc:1,sh:2,sc:6,why:"A válvula alimenta o evaporador em excesso: a pressão baixa sobe e o SH fica próximo de zero, com risco de retorno de líquido."}];
+let S=null; // sessão
+function show(id){["sH","sQ","sR"].forEach(x=>$(x).classList.toggle("hide",x!==id));$("home").classList.toggle("hide",id==="sH");window.scrollTo(0,0)}
+function drawHome(){
+  $("lv").innerHTML=[1,2,3].map(l=>{const p=st[l]||{q:0,ok:0,best:null};
+    return `<button class="lvl" data-l="${l}"><b>${LV[l][0]} - ${LV[l][1]}</b><span>${LV[l][2]}</span><small>${p.q?`${p.ok} de ${p.q} questões corretas${p.best!==null?` · melhor rodada ${p.best}/${NQ}`:""}`:"Ainda não iniciado"}</small></button>`}).join("");
+  document.querySelectorAll(".lvl").forEach(b=>b.onclick=()=>start(+b.dataset.l));
+}
+function newQ(){
+  const l=S.l,fv=$("fl").value,f=fv==="x"?pick(FLS):fv;
+  if(l<3){return{f,pb:clamp(Math.round(satP(f,rnd(-15,8))/2)*2,2,150),pa:clamp(Math.round(satP(f,rnd(30,52))/5)*5,10,500)}}
+  const F=S.faultQ.length?S.faultQ.shift():pick(FAULTS),tamb=rnd(28,40),te=rnd(2,8)+F.de,tc=tamb+15+F.dc;
+  const pb=clamp(Math.round(satP(f,te)),1,150),pa=clamp(Math.round(satP(f,tc)),10,500),tE=satT(f,pb),tC=satT(f,pa);
+  const opts=shuffle([F,...shuffle(FAULTS.filter(x=>x!==F)).slice(0,3)]);
+  return{f,pb,pa,F,tamb,tsuc:Math.round(tE+F.sh),tliq:Math.round(tC-F.sc),opts}}
+function start(l){S={l,i:0,ok:0,fields:0,fieldsOk:0,log:[],faultQ:shuffle(FAULTS).slice(0,NQ).concat(shuffle(FAULTS))};next();show("sQ")}
+function next(){
+  if(S.i>=NQ)return result();
+  S.i++;S.q=newQ();S.done=false;const q=S.q,l=S.l;
+  $("qn").textContent=`${LV[l][0]} · questão ${S.i} de ${NQ}`;$("pbar").style.width=((S.i-1)/NQ*100)+"%";
+  drawDials($("dl"),{f:q.f,pb:q.pb,pa:q.pa,t:l>=2});
+  let h=`<p class="fl">Fluido: <b>${q.f}</b></p>`;
+  if(l===3){h+=`<div class="data"><div><span>T ambiente (ar externo)</span><b>${q.tamb} °C</b></div><div><span>T tubo de sucção</span><b>${q.tsuc} °C</b></div><div><span>T linha de líquido</span><b>${q.tliq} °C</b></div></div>
+    <p class="mut">Leia T<sub>evap</sub> e T<sub>cond</sub> na escala verde dos relógios, calcule SH = T sucção − T<sub>evap</sub> e SC = T<sub>cond</sub> − T líquido, e escolha o diagnóstico.</p><div class="opts">${q.opts.map((o,i)=>`<button class="opt" data-i="${i}">${o.n}</button>`).join("")}</div>`;
+    $("qin").innerHTML=h;document.querySelectorAll(".opt").forEach(b=>b.onclick=()=>answer3(+b.dataset.i));$("chk").classList.add("hide")}
+  else{h+=`<div class="fields"><label>Pressão baixa (psig)<input id="a_pb" inputmode="decimal" autocomplete="off"></label>`+(l===2?`<label>T saturação baixa (°C)<input id="a_tb" inputmode="decimal" autocomplete="off"></label>`:"")+
+    `<label>Pressão alta (psig)<input id="a_pa" inputmode="decimal" autocomplete="off"></label>`+(l===2?`<label>T saturação alta (°C)<input id="a_ta" inputmode="decimal" autocomplete="off"></label>`:"")+`</div>
+    <details><summary>💡 Dica</summary><p class="mut">Veja a legenda no relógio: a baixa vale 2 psi por divisão e a alta 10 psi. ${l===2?"A escala verde vale 5 °C por divisão e é a do fluido indicado acima. ":""}Se a agulha ficar entre dois traços, estime a metade.</p></details><p id="msg" class="bad"></p>`;
+    $("qin").innerHTML=h;$("chk").classList.remove("hide");$("chk").textContent="Conferir"}
+  $("fb").classList.add("hide");$("nxt").classList.add("hide");
+}
+const num=id=>parseFloat(String($(id).value).replace(",","."));
+const mk=o=>o?"✓":"✗";
+function howLow(p){const b=Math.floor(p/10)*10,d=Math.round((p-b)/2);return `Baixa: a agulha está depois do traço de ${b}; cada divisão vale 2 psi, e ${d} divisões depois dão ${p} psig.`}
+function howHigh(p){const b=Math.floor(p/50)*50,d=Math.floor((p-b)/10),r=(p-b)-d*10;return `Alta: a agulha está depois do traço de ${b}; cada divisão vale 10 psi: ${d} divisões${r?" e meia divisão (+5)":""} depois dão ${p} psig.`}
+function finishQ(ok){S.done=true;if(ok)S.ok++;S.log.push(ok);$("chk").classList.add("hide");$("nxt").classList.remove("hide");$("nxt").textContent=S.i>=NQ?"Ver resultado":"Próxima questão ▶";$("fb").classList.remove("hide");$("pbar").style.width=(S.i/NQ*100)+"%";try{$("fb").scrollIntoView({behavior:"smooth",block:"center"})}catch(e){}}
+$("chk").onclick=()=>{
+  if(S.done)return;const q=S.q,l=S.l,ids=l===2?["a_pb","a_tb","a_pa","a_ta"]:["a_pb","a_pa"],v=ids.map(num);
+  if(v.some(isNaN)){$("msg").textContent="Preencha todos os campos antes de conferir.";return}
+  const tb=satT(q.f,q.pb),ta=satT(q.f,q.pa),r=[Math.abs(v[0]-q.pb)<=2],lines=[`Pressão baixa: você leu <b>${v[0]}</b> · correto <b>${q.pb} psig</b> ${mk(r[0])}`];
+  if(l===2){r.push(Math.abs(v[1]-tb)<=2);lines.push(`T saturação baixa: você leu <b>${v[1]}</b> · correto <b>${f1(tb)} °C</b> ${mk(r[1])}`)}
+  r.push(Math.abs(v[l===2?2:1]-q.pa)<=5);lines.push(`Pressão alta: você leu <b>${v[l===2?2:1]}</b> · correto <b>${q.pa} psig</b> ${mk(r[r.length-1])}`);
+  if(l===2){r.push(Math.abs(v[3]-ta)<=2);lines.push(`T saturação alta: você leu <b>${v[3]}</b> · correto <b>${f1(ta)} °C</b> ${mk(r[r.length-1])}`)}
+  const ok=r.every(Boolean);S.fields+=r.length;S.fieldsOk+=r.filter(Boolean).length;ids.forEach(i=>$(i).disabled=true);
+  $("fb").innerHTML=`<h3 class="${ok?"okc":"bad"}">${ok?"Correto!":"Quase lá, confira a explicação"}</h3><p>${lines.join("<br>")}</p><p class="mut">${howLow(q.pb)}<br>${howHigh(q.pa)}${l===2?`<br>A temperatura vem da escala verde do ${q.f}, na mesma posição da agulha.`:""}<br>Tolerância: 2 psi na baixa, 5 psi na alta e 2 °C.</p>`;
+  finishQ(ok)};
+function answer3(i){
+  if(S.done)return;const q=S.q,o=q.opts[i],ok=o===q.F,tE=satT(q.f,q.pb),tC=satT(q.f,q.pa);
+  document.querySelectorAll(".opt").forEach((b,j)=>{b.disabled=true;if(q.opts[j]===q.F)b.classList.add("right");else if(j===i)b.classList.add("wrong")});
+  S.fields++;if(ok)S.fieldsOk++;
+  $("fb").innerHTML=`<h3 class="${ok?"okc":"bad"}">${ok?"Correto!":"Não foi dessa vez"}</h3><p>Diagnóstico: <b>${q.F.n}</b>.</p><p>T<sub>evap</sub> ≈ ${f1(tE)} °C · T<sub>cond</sub> ≈ ${f1(tC)} °C<br>SH = ${q.tsuc} − ${f1(tE)} ≈ <b>${f1(q.tsuc-tE)} K</b> · SC = ${f1(tC)} − ${q.tliq} ≈ <b>${f1(tC-q.tliq)} K</b><br>T<sub>cond</sub> − T ambiente ≈ ${f1(tC-q.tamb)} K</p><p class="mut">${q.F.why}</p>`;
+  finishQ(ok)}
+$("nxt").onclick=next;
+function result(){
+  const p=st[S.l]=st[S.l]||{q:0,ok:0,best:null};p.q+=NQ;p.ok+=S.ok;p.best=Math.max(p.best||0,S.ok);save();
+  const m=S.ok>=8?"Excelente! Você domina este nível. Tente o próximo.":S.ok>=5?"Bom resultado. Refaça para firmar a leitura.":"Revise a explicação de cada questão e tente de novo, com calma.";
+  $("res").innerHTML=`<h2>${LV[S.l][0]} concluído</h2><p class="big">${S.ok} / ${NQ}</p><p>${m}</p><p class="mut">Acertos por item: ${S.fieldsOk} de ${S.fields}</p><p class="dots">${S.log.map(x=>`<span class="${x?"okc":"bad"}">${x?"●":"○"}</span>`).join(" ")}</p>`;
+  $("again").onclick=()=>start(S.l);show("sR")}
+$("home").onclick=()=>{drawHome();show("sH")};$("again2").onclick=()=>{drawHome();show("sH")};
+$("fl").innerHTML='<option value="x">Aleatório (todos)</option>'+FLS.map(f=>`<option>${f}</option>`).join("");
+$("rst").onclick=()=>{if(confirm("Apagar seu progresso neste aparelho?")){st={};save();drawHome()}};
+drawHome();show("sH");
+
+</script>
+</body>
+</html>
