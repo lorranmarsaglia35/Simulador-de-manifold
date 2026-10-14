@@ -53,7 +53,7 @@ details{margin:10px 0}summary{cursor:pointer;color:var(--acc)}.hide{display:none
 <main>
 <section id="sH">
   <div class="card"><h2>Treine a leitura sozinho</h2>
-    <p>Em cada rodada você resolve 10 questões, recebe a correção na hora, com a explicação de como contar as divisões, e acompanha seu progresso. Os níveis aumentam de dificuldade: leitura de pressão, temperatura de saturação e diagnóstico do sistema.</p>
+    <p>Em cada rodada você resolve 10 questões (8 etapas nos níveis 6 e 7), recebe a correção na hora, com a explicação de como contar as divisões, e acompanha seu progresso. Os níveis aumentam de dificuldade: leitura de pressão, temperatura de saturação e diagnóstico do sistema.</p>
     <label>Fluido refrigerante<select id="fl"></select></label>
     <label style="margin-top:10px">Manifold (níveis 1 a 3)<select id="mt"><option value="a">Analógico (relógios)</option><option value="d">Digital (visor)</option></select></label>
     <label style="margin-top:10px">Vacuômetro (níveis 4 e 5)<select id="vt"><option value="a">Analógico (relógio)</option><option value="d">Digital (microns)</option></select></label></div>
@@ -63,7 +63,7 @@ details{margin:10px 0}summary{cursor:pointer;color:var(--acc)}.hide{display:none
   <details class="card"><summary>Como ler o vacuômetro analógico</summary><p>O relógio mostra <b>quanto vácuo foi feito</b>, ou seja, quanto ar foi retirado. A leitura começa em 0 (só atmosfera) e sobe até cerca de 30 inHg; a agulha parte do 0 e gira no sentido anti-horário. Cada divisão vale 1 inHg, e a escala verde mostra o mesmo vácuo em mmHg (50 por divisão; 1 inHg ≈ 25,4 mmHg). O analógico não distingue 500 microns de 5 000 microns, por isso o digital confirma a evacuação.</p></details>
   <details class="card"><summary>Como ler o vacuômetro digital</summary><p>O visor mostra a <b>pressão dentro do sistema</b>, em microns. Ele começa alto e desce: quanto menor, melhor. Micron aqui é micrômetro de mercúrio (1/1000 de mmHg), uma unidade de pressão e não de comprimento: 1 mmHg = 1000 microns. A meta é 500 microns ou menos. Atingida a meta, isole a bomba e observe por cerca de 10 minutos: se sobe pouco e estabiliza, o sistema está estanque e seco; se sobe e estabiliza alto, há umidade; se sobe sem parar, há vazamento.</p></details>
   <details class="card"><summary>Como ler o manifold digital</summary><p>O manifold digital mostra as pressões de baixa e alta em psi, bar ou kPa (relativas à atmosfera) e, com o fluido selecionado, calcula as temperaturas de saturação. Com as sondas nas tubulações, mostra também o SH e o SC. Confira sempre a unidade e o fluido no visor: 1 bar ≈ 14,5 psi e 1 kPa ≈ 0,145 psi.</p></details>
-  <p class="mut">Valores de pressão e temperatura aproximados, para uso didático. Em serviço, use a tabela do fabricante. <button id="rst" class="ghost">Apagar progresso</button><br>Versão 9 (analógico e digital)</p>
+  <p class="mut">Valores de pressão e temperatura aproximados, para uso didático. Em serviço, use a tabela do fabricante. <button id="rst" class="ghost">Apagar progresso</button><br>Versão 10 (simulações de recuperação e N₂)</p>
 </section>
 <section id="sQ" class="hide">
   <div class="mut" id="qn"></div><div class="bar"><i id="pbar"></i></div>
@@ -128,8 +128,9 @@ const LV45={a:{4:LV[4],5:LV[5]},d:{4:["Nível 4","Vacuômetro digital","Leia o v
 let VT="a";try{VT=localStorage.getItem("mf_vt")==="d"?"d":"a"}catch(e){}
 let MT="a";try{MT=localStorage.getItem("mf_mt")==="d"?"d":"a"}catch(e){}
 const LV13={a:{1:LV[1],2:LV[2],3:LV[3]},d:{1:["Nível 1","Pressão no manifold digital","Converta bar ou kPa para psi, como no visor de um manifold digital."],2:["Nível 2","SH e SC com o manifold digital","O aparelho mostra a T de saturação e as sondas; calcule o superaquecimento e o sub-resfriamento."],3:["Nível 3","Diagnóstico (manifold digital)","Interprete o visor, com T sat, SH e SC, e descubra o problema."]}};
+LV[6]=["Nível 6","Recuperação de refrigerante","Siga o procedimento com a recuperadora, o cilindro e a balança."];LV[7]=["Nível 7","Teste de estanqueidade","Pressurize com nitrogênio, calcule o efeito da temperatura e diagnostique."];
 const setVT=()=>{LV[4]=LV45[VT][4];LV[5]=LV45[VT][5];[1,2,3].forEach(i=>LV[i]=LV13[MT][i])};setVT();
-const sk=l=>l>=4?(VT==="d"?l+"d":l):(MT==="d"?l+"m":l);
+const sk=l=>l>=6?l:l>=4?(VT==="d"?l+"d":l):(MT==="d"?l+"m":l);
 const fmtM=n=>String(n).replace(/\B(?=(\d{3})+(?!\d))/g," ");
 const FAULTS=[
 {id:"ok",n:"Funcionamento normal",de:0,dc:0,sh:7,sc:7,why:"Pressões coerentes com o ambiente, e SH e SC dentro da faixa de 5 a 10 K: o sistema está bem carregado e trocando calor normalmente."},
@@ -192,11 +193,97 @@ function chkM(){
   const ok=r.every(Boolean);S.fields+=2;S.fieldsOk+=r.filter(Boolean).length;$("m1").disabled=true;$("m2").disabled=true;
   $("fb").innerHTML=`<h3 class="${ok?"okc":"bad"}">${ok?"Correto!":"Quase lá, confira a explicação"}</h3><p>${ln}</p><p class="mut">${ex}</p>`;
   finishQ(ok)}
+// ---------- Simulações de procedimento (níveis 6 e 7) ----------
+const f2=x=>(Math.round(x*100)/100).toString().replace(".",",");
+const nq=()=>S&&S.l>=6?8:NQ;
+const simPanel=o=>`<div class="data">`+o.map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join("")+`</div>`;
+function scRec(){
+  const f=pick(["R-410A","R-134a","R-22","R-404A"]),big=Math.random()<0.5,cap=big?22.7:13.6,tara=big?9.1:6.4,inside=pick([0,1.5,3]),lim=Math.round(cap*80)/100,room=Math.round((lim-inside)*100)/100,maxBal=Math.round((tara+lim)*100)/100;
+  const over=Math.random()<0.5,rs=over?room+pick([0.3,0.5]):room*pick([0.4,0.5,0.6]);
+  return{f,cap,tara,inside,lim,room,maxBal,over,P0:Math.round(satP(f,25)),cur:Math.round((tara+inside+rs)*10)/10,fin:Math.round((tara+inside+room*0.7)*10)/10,reb:pick([0,10,15])}}
+const recP=(s,p,kg,m,c)=>[["Fluido",s.f],["Pressão do sistema",p+" psig"],["Balança",f2(kg)+" kg"],["Recuperadora",m],["Válvula do cilindro",c]];
+const REC=[
+s=>({title:"1. Antes de conectar",text:`Você vai recuperar o ${s.f} de um equipamento. Qual é o primeiro passo?`,type:"mc",panel:recP(s,s.P0,s.tara,"desligada","fechada"),
+ opts:[["Confirmar o fluido pela plaqueta e separar um cilindro de recuperação próprio, certificado, vazio ou com o mesmo fluido, anotando a tara",1],["Conectar a recuperadora e ligar logo, para ganhar tempo",0],["Usar um cilindro descartável de refrigerante novo",0],["Liberar o fluido na atmosfera até a pressão cair",0]],
+ exp:"Identifique o fluido e use um cilindro de recuperação próprio. Nunca misture fluidos no mesmo cilindro, não use cilindro descartável e nunca libere refrigerante na atmosfera."}),
+s=>({title:"2. Limite do cilindro",text:`Cilindro de recuperação: capacidade nominal ${f2(s.cap)} kg, tara ${f2(s.tara)} kg, já contém ${f2(s.inside)} kg do mesmo fluido. Respeite o limite de 80% da capacidade.`,type:"num",panel:recP(s,s.P0,s.tara+s.inside,"desligada","fechada"),
+ fields:[{l:"Ainda cabe no cilindro (kg)",v:s.room,t:0.2},{l:"Peso máximo na balança (kg)",v:s.maxBal,t:0.2}],hint:"Limite = 80% da capacidade. Ainda cabe = limite − o que já tem. Peso máximo na balança = tara + limite.",
+ exp:`Limite = 80% × ${f2(s.cap)} = ${f2(s.lim)} kg de fluido. Ainda cabe ${f2(s.lim)} − ${f2(s.inside)} = ${f2(s.room)} kg. Peso máximo na balança = tara + limite = ${f2(s.tara)} + ${f2(s.lim)} = ${f2(s.maxBal)} kg. Os 20% restantes dão espaço para a dilatação do líquido com a temperatura.`}),
+s=>({title:"3. Ligação das mangueiras",text:"Como ligar o sistema, a recuperadora e o cilindro?",type:"mc",panel:recP(s,s.P0,s.tara+s.inside,"desligada","fechada"),
+ opts:[["Sistema → mangueira/manifold → entrada (IN) da recuperadora; saída (OUT) → cilindro de recuperação, na válvula indicada pelo fabricante",1],["Sistema direto no cilindro, sem passar pela recuperadora",0],["Entrada e saída da recuperadora invertidas",0],["Cilindro ligado ao sistema para o fluido voltar a ele",0]],
+ exp:"A recuperadora fica entre o sistema e o cilindro: o fluido entra pela entrada (IN) e sai pela saída (OUT) para o cilindro. Siga o manual da máquina quanto à válvula do cilindro."}),
+s=>({title:"4. Ar nas mangueiras",text:"As mangueiras estão cheias de ar. O que fazer antes de abrir as válvulas do sistema?",type:"mc",panel:recP(s,s.P0,s.tara+s.inside,"desligada","fechada"),
+ opts:[["Evacuar ou purgar as mangueiras, conforme o manual, para não levar ar ao cilindro",1],["Nada: o ar das mangueiras não faz diferença",0],["Abrir tudo e deixar a máquina limpar sozinha",0],["Liberar refrigerante do sistema para empurrar o ar",0]],
+ exp:"O ar que entra no cilindro é gás não condensável: eleva a pressão e contamina o fluido recuperado. Evacue ou purgue as mangueiras sem liberar refrigerante."}),
+s=>({title:"5. Ordem para iniciar",text:"Mangueiras prontas. Qual a ordem correta para começar a recuperar?",type:"mc",panel:recP(s,s.P0,s.tara+s.inside,"desligada","fechada"),
+ opts:[["Abrir a válvula do cilindro, depois as do manifold e do sistema, e só então ligar a recuperadora",1],["Ligar a recuperadora com a válvula do cilindro fechada",0],["Ligar a máquina primeiro e abrir as válvulas depois",0],["Abrir só a válvula do sistema e ligar a máquina",0]],
+ exp:"Com a saída fechada, a pressão de descarga sobe, a máquina desarma ou se danifica. Abra o caminho completo antes de ligar."}),
+s=>({title:"6. Acompanhando a balança",text:`A recuperadora está ligada e a pressão do sistema cai. A balança marca ${f2(s.cur)} kg; o limite do cilindro (80%) é ${f2(s.maxBal)} kg. O que fazer?`,type:"mc",panel:recP(s,Math.round(s.P0*0.4),s.cur,"ligada","aberta"),
+ opts:s.over?[["Parar a máquina, fechar as válvulas e trocar por outro cilindro: o limite de 80% foi ultrapassado",1],["Continuar até a pressão chegar a 0 psig",0],["Abrir um pouco mais a válvula do cilindro",0]]:[[`Continuar e vigiar a balança: ainda há margem até ${f2(s.maxBal)} kg`,1],["Parar agora e desconectar tudo",0],["Ignorar a balança e olhar só a pressão",0]],
+ exp:`Monitore a balança durante toda a recuperação. O cilindro nunca deve passar de 80% da capacidade (aqui, ${f2(s.maxBal)} kg na balança): acima disso falta espaço para a dilatação e há risco de ruptura.`}),
+s=>({title:"7. Fim da recuperação",text:`A pressão chegou a 0 psig. Você fechou a válvula do sistema e esperou alguns minutos: agora ela marca ${s.reb} psig. O que fazer?`,type:"mc",panel:recP(s,s.reb,s.fin,"desligada","aberta"),
+ opts:s.reb>0?[["Abrir a válvula do sistema e recuperar de novo: ainda havia fluido, por exemplo dissolvido no óleo",1],["Encerrar: pressão baixa é normal",0],["Liberar o restante na atmosfera",0]]:[["A pressão ficou estável em 0: a recuperação terminou",1],["Ligar a máquina por mais uma hora, só para garantir",0],["Liberar o restante na atmosfera",0]],
+ exp:s.reb>0?"Se a pressão sobe depois de parar, ainda há refrigerante (líquido ou dissolvido no óleo) evaporando. Recupere de novo até a pressão ficar estável.":"Pressão estável depois de alguns minutos indica que não resta fluido para recuperar. Siga também o nível de vácuo exigido pelo procedimento e pela regulamentação local."}),
+s=>({title:"8. Fechamento",text:`Recuperação concluída: a balança marca ${f2(s.fin)} kg. Qual o fechamento correto?`,type:"mc",panel:recP(s,s.reb,s.fin,"desligada","aberta"),
+ opts:[["Fechar a válvula do cilindro e as do manifold, desligar a máquina, pesar, anotar a massa recuperada e identificar o cilindro (fluido, massa e data)",1],["Desconectar as mangueiras sem fechar as válvulas",0],["Deixar o cilindro aberto para a pressão equalizar",0],["Guardar o cilindro sem anotar o que há nele",0]],
+ exp:`Massa recuperada: ${f2(s.fin)} − ${f2(s.tara)} − ${f2(s.inside)} = ${f2(s.fin-s.tara-s.inside)} kg. Feche as válvulas antes de desconectar, para não perder fluido, e identifique o cilindro com o fluido, a massa e a data.`})];
+function scN2(){
+  const lado=pick(["baixa","alta"]),Pmax=lado==="baixa"?pick([150,175]):pick([400,450]),P1=Pmax-pick([0,10,20]),T1=rnd(26,34),T2=T1+(Math.random()<0.7?-rnd(4,10):rnd(3,8)),leak=Math.random()<0.5,exp=(P1+14.696)*(T2+273.15)/(T1+273.15)-14.696;
+  return{lado,Pmax,P1,T1,T2,leak,exp:Math.round(exp*10)/10,meas:Math.round(leak?exp-rnd(10,25):exp+pick([-1,0,1]))}}
+const n2P=(s,p,t,c)=>[["Plaqueta (lado "+s.lado+")","máx. "+s.Pmax+" psig"],["Pressão no sistema",p],["Temperatura",t],["Cilindro de N₂",c]];
+const N2=[
+s=>({title:"1. Qual gás usar",text:"Você vai fazer o teste de estanqueidade em um sistema novo. Qual gás usar?",type:"mc",panel:n2P(s,"0 psig",s.T1+" °C","fechado"),
+ opts:[["Nitrogênio seco (sem oxigênio), com regulador de pressão",1],["Ar comprimido do compressor da oficina",0],["Oxigênio",0],["O próprio refrigerante, em pressão alta",0]],
+ exp:"Use nitrogênio seco. O ar traz umidade e óleo; o oxigênio em contato com óleo pode causar explosão; usar refrigerante emite gás à atmosfera."}),
+s=>({title:"2. Ligando o cilindro",text:"Como ligar o cilindro de nitrogênio ao sistema?",type:"mc",panel:n2P(s,"0 psig",s.T1+" °C","fechado"),
+ opts:[["Com regulador de pressão (manômetro e válvula de alívio), cilindro preso na vertical, abrindo a válvula devagar",1],["Direto no manifold, sem regulador, controlando pela válvula do cilindro",0],["Com o cilindro deitado e solto, para ficar mais fácil",0],["Abrindo a válvula do cilindro de uma vez",0]],
+ exp:"O cilindro de nitrogênio tem pressão muito alta. O regulador reduz e controla a pressão, o cilindro deve ficar preso e a válvula abre devagar. Nunca ligue o cilindro direto ao sistema."}),
+s=>({title:"3. Pressão de teste",text:`A plaqueta indica pressão máxima de teste de ${s.Pmax} psig no lado ${s.lado}. Qual pressão de teste usar?`,type:"mc",panel:n2P(s,"0 psig",s.T1+" °C","fechado"),
+ opts:[[`${s.P1} psig, sem passar de ${s.Pmax} psig da plaqueta`,1],[`${s.Pmax+100} psig, para ter certeza`,0],[`${s.Pmax*2} psig, para um teste mais rigoroso`,0],["A pressão do cilindro, sem regulador",0]],
+ exp:`Nunca ultrapasse a pressão máxima de teste da plaqueta (${s.Pmax} psig). Acima disso, componentes podem romper ou se danificar. Ajuste o regulador antes de abrir.`}),
+s=>({title:"4. Pressurizando",text:"Como subir a pressão do sistema?",type:"mc",panel:n2P(s,"subindo",s.T1+" °C","aberto"),
+ opts:[["Aos poucos, pelo regulador, em etapas, conferindo o manômetro e procurando vazamentos grandes",1],["Abrindo totalmente o cilindro de uma vez",0],["Subindo bem acima do valor para acelerar o teste",0],["Subindo sem olhar o manômetro, só pelo tempo",0]],
+ exp:"Suba devagar, com o regulador ajustado no valor de teste. Em etapas, vazamentos grandes aparecem cedo e a pressão não passa do limite."}),
+s=>({title:"5. Isolando e aguardando",text:`O sistema chegou a ${s.P1} psig. O que fazer para observar a estanqueidade?`,type:"mc",panel:n2P(s,s.P1+" psig",s.T1+" °C","fechado"),
+ opts:[["Fechar a válvula do cilindro, isolar o sistema, anotar pressão e temperatura e aguardar o tempo do procedimento",1],["Manter o cilindro aberto durante o teste para compensar a queda",0],["Aumentar a pressão sempre que ela cair",0],["Desmontar o manômetro e conferir só no fim do dia",0]],
+ exp:"Com o cilindro aberto, ele repõe o gás e esconde o vazamento. Isole, anote pressão e temperatura iniciais e aguarde o tempo definido pelo procedimento (de dezenas de minutos até 24 h)."}),
+s=>({title:"6. Efeito da temperatura",text:`Início: ${s.P1} psig a ${s.T1} °C. Depois da espera, a temperatura ambiente é ${s.T2} °C. Qual a pressão esperada se não houver vazamento (só pelo efeito da temperatura)?`,type:"num",panel:n2P(s,s.P1+" psig",s.T1+" → "+s.T2+" °C","fechado"),
+ fields:[{l:"Pressão esperada (psig)",v:s.exp,t:3}],hint:"Use pressão absoluta (psig + 14,7) e temperatura em kelvin (°C + 273,15): P2 = P1 × T2 ÷ T1. Depois volte para psig.",
+ exp:`P1 = ${s.P1} + 14,7 = ${f1(s.P1+14.696)} psia; T1 = ${s.T1+273.15} K; T2 = ${s.T2+273.15} K. P2 = ${f1(s.P1+14.696)} × ${f2(s.T2+273.15)} ÷ ${f2(s.T1+273.15)} ≈ ${f1(s.exp+14.696)} psia ≈ ${f1(s.exp)} psig. ${s.T2<s.T1?"A pressão cai só porque esfriou.":"A pressão sobe só porque esquentou."}`}),
+s=>({title:"7. Conclusão do teste",text:`Pressão medida agora: ${s.meas} psig a ${s.T2} °C. Esperado só pela temperatura: ${f1(s.exp)} psig. Qual a conclusão?`,type:"mc",panel:n2P(s,s.meas+" psig",s.T2+" °C","fechado"),
+ opts:[["Sem vazamento: a variação é explicada pela temperatura",!s.leak?1:0],["Há vazamento: a pressão caiu mais do que a temperatura explica",s.leak?1:0],["Inconclusivo: encerrar sem avaliar",0]],
+ exp:s.leak?`A pressão esperada era ${f1(s.exp)} psig e a medida é ${s.meas}: queda extra de ${f1(s.exp-s.meas)} psi, que a temperatura não explica. Há vazamento.`:`A pressão medida (${s.meas}) está praticamente igual à esperada pela temperatura (${f1(s.exp)}). Sem vazamento: o sistema está estanque.`}),
+s=>s.leak?({title:"8. Localizando o vazamento",text:"Há vazamento. Como localizá-lo com o sistema pressurizado com nitrogênio?",type:"mc",panel:n2P(s,s.meas+" psig",s.T2+" °C","fechado"),
+ opts:[["Passar solução de água e sabão nas conexões e observar as bolhas",1],["Passar uma chama junto às conexões",0],["Aumentar a pressão acima da plaqueta para o vazamento aparecer",0],["Usar detector de refrigerante, que acusa nitrogênio puro",0]],
+ exp:"A solução de espuma mostra bolhas onde o gás escapa. Não use chama. Não ultrapasse a pressão da plaqueta. Detector de refrigerante não detecta nitrogênio puro. Depois de corrigir, repita o teste."}):({title:"8. Encerrando o teste",text:"O sistema está estanque. O que fazer com o nitrogênio antes do vácuo?",type:"mc",panel:n2P(s,s.meas+" psig",s.T2+" °C","fechado"),
+ opts:[["Aliviar devagar, em local ventilado, pelo manifold, até 0 psig; depois fazer o vácuo",1],["Abrir uma conexão com o sistema pressurizado",0],["Deixar o nitrogênio e carregar o refrigerante por cima",0],["Aliviar em um espaço fechado, sem ventilação",0]],
+ exp:"Alivie a pressão aos poucos por uma válvula, em local ventilado: o nitrogênio desloca o oxigênio e pode asfixiar em espaço fechado. Depois, faça o vácuo para retirar o nitrogênio e a umidade."})];
+function nextSim(){
+  const l=S.l,st=(l===6?REC:N2)[S.i-1](S.sc);S.q=st;
+  $("qn").textContent=`${LV[l][0]} · etapa ${S.i} de ${nq()}`;$("pbar").style.width=((S.i-1)/nq()*100)+"%";
+  $("dl").className="dials one";$("dl").innerHTML=`<div class="card" style="margin:0">${simPanel(st.panel)}</div>`;
+  let h=`<h3>${st.title}</h3><p>${st.text}</p>`;
+  if(st.type==="mc"){S.opts=shuffle(st.opts.slice());h+=`<div class="opts">${S.opts.map((o,i)=>`<button class="opt" data-i="${i}">${o[0]}</button>`).join("")}</div>`;
+    $("qin").innerHTML=h;document.querySelectorAll(".opt").forEach(b=>b.onclick=()=>answerSim(+b.dataset.i));$("chk").classList.add("hide")}
+  else{h+=`<div class="fields">${st.fields.map((f,i)=>`<label>${f.l}<input id="s${i}" inputmode="decimal" autocomplete="off"></label>`).join("")}</div>${st.hint?`<details><summary>💡 Dica</summary><p class="mut">${st.hint}</p></details>`:""}<p id="msg" class="bad"></p>`;
+    $("qin").innerHTML=h;$("chk").classList.remove("hide");$("chk").textContent="Conferir"}
+  $("fb").classList.add("hide");$("nxt").classList.add("hide")}
+function answerSim(i){
+  if(S.done)return;const st=S.q,ok=!!S.opts[i][1];
+  document.querySelectorAll(".opt").forEach((b,j)=>{b.disabled=true;if(S.opts[j][1])b.classList.add("right");else if(j===i)b.classList.add("wrong")});
+  S.fields++;if(ok)S.fieldsOk++;
+  $("fb").innerHTML=`<h3 class="${ok?"okc":"bad"}">${ok?"Correto!":"Não foi dessa vez"}</h3><p class="mut">${st.exp}</p>`;finishQ(ok)}
+function chkSim(){
+  if(S.done)return;const st=S.q,v=st.fields.map((f,i)=>num("s"+i));
+  if(v.some(isNaN)){$("msg").textContent="Preencha todos os campos antes de conferir.";return}
+  const r=st.fields.map((f,i)=>Math.abs(v[i]-f.v)<=f.t+1e-9),ok=r.every(Boolean);
+  S.fields+=r.length;S.fieldsOk+=r.filter(Boolean).length;st.fields.forEach((f,i)=>$("s"+i).disabled=true);
+  $("fb").innerHTML=`<h3 class="${ok?"okc":"bad"}">${ok?"Correto!":"Quase lá, confira a explicação"}</h3><p>${st.fields.map((f,i)=>`${f.l}: você respondeu <b>${f1(v[i])}</b> · correto <b>${f2(f.v)}</b> ${mk(r[i])}`).join("<br>")}</p><p class="mut">${st.exp}<br>Tolerância: ${f2(st.fields[0].t)}.</p>`;finishQ(ok)}
 let S=null; // sessão
 function show(id){["sH","sQ","sR"].forEach(x=>$(x).classList.toggle("hide",x!==id));$("home").classList.toggle("hide",id==="sH");window.scrollTo(0,0)}
 function drawHome(){
-  $("lv").innerHTML=[1,2,3,4,5].map(l=>{const p=st[sk(l)]||{q:0,ok:0,best:null};
-    return `<button class="lvl" data-l="${l}"><b>${LV[l][0]} - ${LV[l][1]}</b><span>${LV[l][2]}</span><small>${p.q?`${p.ok} de ${p.q} questões corretas${p.best!==null?` · melhor rodada ${p.best}/${NQ}`:""}`:"Ainda não iniciado"}</small></button>`}).join("");
+  $("lv").innerHTML=[1,2,3,4,5,6,7].map(l=>{const p=st[sk(l)]||{q:0,ok:0,best:null};
+    return `<button class="lvl" data-l="${l}"><b>${LV[l][0]} - ${LV[l][1]}</b><span>${LV[l][2]}</span><small>${p.q?`${p.ok} de ${p.q} questões corretas${p.best!==null?` · melhor rodada ${p.best}/${p.n||NQ}`:""}`:"Ainda não iniciado"}</small></button>`}).join("");
   document.querySelectorAll(".lvl").forEach(b=>b.onclick=()=>start(+b.dataset.l));
 }
 function newQ(){
@@ -208,10 +295,10 @@ function newQ(){
   const pb=clamp(Math.round(satP(f,te)),1,150),pa=clamp(Math.round(satP(f,tc)),10,500),tE=satT(f,pb),tC=satT(f,pa);
   const opts=shuffle([F,...shuffle(FAULTS.filter(x=>x!==F)).slice(0,3)]);
   return{f,pb,pa,F,tamb,tsuc:Math.round(tE+F.sh),tliq:Math.round(tC-F.sc),opts}}
-function start(l){S={l,d:VT==="d",m:MT==="d"&&l<=3,i:0,ok:0,fields:0,fieldsOk:0,log:[],faultQ:(s0=>shuffle(s0).slice(0,NQ).concat(shuffle(s0)))(l===5?(VT==="d"?EVACD:EVAC):FAULTS)};next();show("sQ")}
+function start(l){S={l,d:VT==="d",m:MT==="d"&&l<=3,i:0,ok:0,fields:0,fieldsOk:0,log:[],faultQ:(s0=>shuffle(s0).slice(0,NQ).concat(shuffle(s0)))(l===5?(VT==="d"?EVACD:EVAC):FAULTS)};S.sc=l===6?scRec():l===7?scN2():null;next();show("sQ")}
 function next(){
-  if(S.i>=NQ)return result();
-  S.i++;S.q=newQ();S.done=false;const q=S.q,l=S.l;
+  if(S.i>=nq())return result();
+  S.i++;S.done=false;if(S.l>=6)return nextSim();S.q=newQ();const q=S.q,l=S.l;
   $("qn").textContent=`${LV[l][0]} · questão ${S.i} de ${NQ}`;$("pbar").style.width=((S.i-1)/NQ*100)+"%";
   if(S.d&&l>=4){$("dl").className="dials one";$("dl").innerHTML=l===4?lcd(q.disp,q.unit,""):lcd(q.a,"MICRON","bomba ligada")+chart(q.a,q.s)}
   else if(S.m&&l<=3){$("dl").className="dials one";$("dl").innerHTML=dman(q,l)}
@@ -246,7 +333,7 @@ const num=id=>parseFloat(String($(id).value).replace(",","."));
 const mk=o=>o?"✓":"✗";
 function howLow(p){const b=Math.floor(p/10)*10,d=Math.round((p-b)/2);return `Baixa: a agulha está depois do traço de ${b}; cada divisão vale 2 psi, e ${d} divisões depois dão ${p} psig.`}
 function howHigh(p){const b=Math.floor(p/50)*50,d=Math.floor((p-b)/10),r=(p-b)-d*10;return `Alta: a agulha está depois do traço de ${b}; cada divisão vale 10 psi: ${d} divisões${r?" e meia divisão (+5)":""} depois dão ${p} psig.`}
-function finishQ(ok){S.done=true;if(ok)S.ok++;S.log.push(ok);$("chk").classList.add("hide");$("nxt").classList.remove("hide");$("nxt").textContent=S.i>=NQ?"Ver resultado":"Próxima questão ▶";$("fb").classList.remove("hide");$("pbar").style.width=(S.i/NQ*100)+"%";try{$("fb").scrollIntoView({behavior:"smooth",block:"center"})}catch(e){}}
+function finishQ(ok){S.done=true;if(ok)S.ok++;S.log.push(ok);$("chk").classList.add("hide");$("nxt").classList.remove("hide");$("nxt").textContent=S.i>=nq()?"Ver resultado":"Próxima questão ▶";$("fb").classList.remove("hide");$("pbar").style.width=(S.i/NQ*100)+"%";try{$("fb").scrollIntoView({behavior:"smooth",block:"center"})}catch(e){}}
 const f3=x=>(Math.round(x*1000)/1000).toString().replace(".",",");
 function chk4d(){
   const q=S.q,ids=["a_mic","a_mm"],v=ids.map(num),sel=$("a_ok").value;
@@ -271,7 +358,7 @@ function chk4(){
   $("fb").innerHTML=`<h3 class="${ok?"okc":"bad"}">${ok?"Correto!":"Quase lá, confira a explicação"}</h3><p>Vácuo lido: você leu <b>${f1(v[0])}</b> · correto <b>${f1(q.v)} inHg</b> ${mk(r[0])}<br>Em mmHg: você respondeu <b>${v[1]}</b> · correto <b>${Math.round(mm)} mmHg</b> ${mk(r[1])}</p><p class="mut">Veja: ${howVac(q.v)}<br>1 inHg ≈ 25,4 mmHg: ${f1(q.v)} × 25,4 ≈ ${Math.round(mm)} mmHg (confira na escala verde).<br>Para comparar com o vacuômetro digital: esse mesmo vácuo apareceria no visor como cerca de ${fmtM(dig)} microns (760 − ${Math.round(mm)} mmHg, vezes 1000).<br>Ao nível do mar o relógio chega a no máximo 29,9 inHg; em altitude, marca menos.<br>Tolerância: 0,5 inHg e 15 mmHg.</p>`;
   finishQ(ok)}
 $("chk").onclick=()=>{
-  if(S.done)return;if(S.l===4)return S.d?chk4d():chk4();if(S.m&&S.l<3)return chkM();const q=S.q,l=S.l,ids=l===2?["a_pb","a_tb","a_pa","a_ta"]:["a_pb","a_pa"],v=ids.map(num);
+  if(S.done)return;if(S.l>=6)return chkSim();if(S.l===4)return S.d?chk4d():chk4();if(S.m&&S.l<3)return chkM();const q=S.q,l=S.l,ids=l===2?["a_pb","a_tb","a_pa","a_ta"]:["a_pb","a_pa"],v=ids.map(num);
   if(v.some(isNaN)){$("msg").textContent="Preencha todos os campos antes de conferir.";return}
   const tb=satT(q.f,q.pb),ta=satT(q.f,q.pa),r=[Math.abs(v[0]-q.pb)<=2],lines=[`Pressão baixa: você leu <b>${v[0]}</b> · correto <b>${q.pb} psig</b> ${mk(r[0])}`];
   if(l===2){r.push(Math.abs(v[1]-tb)<=2);lines.push(`T saturação baixa: você leu <b>${v[1]}</b> · correto <b>${f1(tb)} °C</b> ${mk(r[1])}`)}
@@ -294,9 +381,9 @@ function answer3(i){
   finishQ(ok)}
 $("nxt").onclick=next;
 function result(){
-  const p=st[sk(S.l)]=st[sk(S.l)]||{q:0,ok:0,best:null};p.q+=NQ;p.ok+=S.ok;p.best=Math.max(p.best||0,S.ok);save();
-  const m=S.ok>=8?"Excelente! Você domina este nível. Tente o próximo.":S.ok>=5?"Bom resultado. Refaça para firmar a leitura.":"Revise a explicação de cada questão e tente de novo, com calma.";
-  $("res").innerHTML=`<h2>${LV[S.l][0]} concluído</h2><p class="big">${S.ok} / ${NQ}</p><p>${m}</p><p class="mut">Acertos por item: ${S.fieldsOk} de ${S.fields}</p><p class="dots">${S.log.map(x=>`<span class="${x?"okc":"bad"}">${x?"●":"○"}</span>`).join(" ")}</p>`;
+  const p=st[sk(S.l)]=st[sk(S.l)]||{q:0,ok:0,best:null};p.q+=nq();p.n=nq();p.ok+=S.ok;p.best=Math.max(p.best||0,S.ok);save();
+  const m=S.ok/nq()>=0.8?"Excelente! Você domina este nível. Tente o próximo.":S.ok/nq()>=0.5?"Bom resultado. Refaça para firmar a leitura.":"Revise a explicação de cada questão e tente de novo, com calma.";
+  $("res").innerHTML=`<h2>${LV[S.l][0]} concluído</h2><p class="big">${S.ok} / ${nq()}</p><p>${m}</p><p class="mut">Acertos por item: ${S.fieldsOk} de ${S.fields}</p><p class="dots">${S.log.map(x=>`<span class="${x?"okc":"bad"}">${x?"●":"○"}</span>`).join(" ")}</p>`;
   $("again").onclick=()=>start(S.l);show("sR")}
 $("home").onclick=()=>{drawHome();show("sH")};$("again2").onclick=()=>{drawHome();show("sH")};
 $("mt").value=MT;$("mt").onchange=()=>{MT=$("mt").value;try{localStorage.setItem("mf_mt",MT)}catch(e){}setVT();drawHome()};
